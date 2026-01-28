@@ -1,0 +1,74 @@
+syntax = "v1"
+
+info(
+    title: "微宝塔"
+    serviceMod: 1
+)
+
+@server(
+    group: v1/user
+    logic: User
+)
+service UserPublic{
+    @server(
+        handler: Login
+        logic: User.Login
+    )
+    post /login (LoginReq) returns(LoginResp)
+
+    @server(
+        handler: Register
+        logic: User.Register
+    )
+    post /register (RegisterReq) returns(RegisterResp)
+}
+
+@server(
+    group: v1/user
+    logic: User
+    middleware: JwtMid
+)
+service UserSelf{
+    @server(
+        handler: Info
+        logic: User.Info
+    )
+    get /me returns(User)
+
+    @server(
+        handler: UpPassword
+        logic: User.UpPassword
+    )
+    post /password (UpPasswordReq)
+
+    @server(
+        handler: DeleteSelf
+        logic: User.DeleteSelf
+    )
+    delete /me
+}
+
+@server(
+    group: v1/admin/users
+    logic: User
+    middleware: JwtMid, AdminMid
+)
+service AdminUser{
+    @server(
+        handler: List
+        logic: User.List
+    )
+    get / (UserListReq) returns (UserListResp)
+
+    @server(
+        handler: Create
+        logic: User.Create
+    )
+    post / (User)
+
+    @server(
+        handler: Delete
+        logic: User.AdminDelete
+    )
+    delete /:id (IdReq)
+}

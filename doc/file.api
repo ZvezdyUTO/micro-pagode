@@ -1,0 +1,63 @@
+syntax = "v1"
+
+info(
+    title: "微宝塔"
+    serviceMod: 1
+)
+
+@server(
+    group: v1/file
+    logic: File
+    middleware: JwtMid
+)
+service File {
+    @server(
+        handler: List
+        logic: File.List
+        doc: 文件列表
+    )
+    get / (FilePathReq) returns (FileListResp)
+
+    @server(
+        handler: CreateDir
+        logic: File.CreateDir
+        doc: 创建目录
+    )
+    post /dir (FilePathReq)
+
+    @server(
+        handler: CreateFile
+        logic: File.CreateFile
+        doc: 创建文件
+    )
+    post /file (FilePathReq)
+
+    @server(
+        handler: Delete
+        logic: File.Delete
+        doc: 删除文件或目录
+    )
+    delete / (FileDeleteReq)
+
+    @server(
+        handler: Upload
+        logic: File.Upload
+        doc: 文件上传
+    )
+    post /upload (UploadFileReq) returns(UploadFileReq)
+
+    @server(
+        handler: Download
+        logic: File.Download
+        doc: 文件下载
+    )
+    get /download (FilePathReq)
+
+    @server(
+            handler: Search
+            logic: File.Search
+            doc: 文件搜索
+            logicDoc: 基于文件名的搜索
+        )
+    get /search (FileSearchReq) returns (FileSearchResp)
+}
