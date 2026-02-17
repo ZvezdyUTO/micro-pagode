@@ -73,8 +73,10 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 func initServer(svc *ServiceContext) error {
 	ctx := context.Background()
 
-	// 初始化系统管理员
 	if err := initSystemUser(ctx, svc); err != nil {
+		return err
+	}
+	if err := initSystemMonitorConfig(ctx, svc); err != nil {
 		return err
 	}
 	return nil
@@ -82,13 +84,17 @@ func initServer(svc *ServiceContext) error {
 
 func initSystemUser(ctx context.Context, svc *ServiceContext) error {
 	systemUser, err := svc.UsersModel.SystemUser()
-	if err == nil && !errors.Is(err, model.ErrNotFound) {
-		return nil
+
+	if err != nil && !errors.Is(err, model.ErrNotFound) {
+		return err
 	}
+
 	if systemUser != nil {
 		return nil
 	}
-	u, err := svc.UsersModel.FindByName("root") // 防止重复注册root
+
+	// 防止重复 root
+	u, err := svc.UsersModel.FindByName("root")
 	if err == nil && u != nil {
 		return nil
 	}
@@ -97,6 +103,7 @@ func initSystemUser(ctx context.Context, svc *ServiceContext) error {
 	if err != nil {
 		return err
 	}
+
 	return svc.UsersModel.Insert(ctx, &model.Users{
 		Name:     "root",
 		Phone:    "123456789",
@@ -104,4 +111,31 @@ func initSystemUser(ctx context.Context, svc *ServiceContext) error {
 		Status:   model.UserStatusNormal,
 		IsSystem: model.IsSystemUser,
 	})
+}
+
+func initSystemMonitorConfig(ctx context.Context, svc *ServiceContext) error {
+	_, err := svc.SystemMonitorConfig.Get(ctx)
+
+	if err != nil && !errors.Is(err, model.ErrNotFound) {
+		return err
+	}
+
+	if errors.Is(err, model.ErrNotFound) {
+		defaultCfg := &model.SystemMonitorConfig{
+			IsStart:      false,
+			CpuLimit:     90,
+			DiskLimit:    80,
+			MenLimit:     80,
+			NetSendLimit: 1024,
+			NetRecvLimit: 1024,
+			NotifyType:   1,
+			Email:        "",
+		}
+
+		if err := svc.SystemMonitorConfig.Insert(ctx, defaultCfg); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -19,8 +19,8 @@ type SystemMonitorConfig struct {
 	NetRecvLimit float64    `gorm:"column:net_recv_limit"`
 	NotifyType   NotifyType `gorm:"column:notify_type"`
 	Email        string     `gorm:"column:email"`
-	CreateAt     time.Time  `gorm:"column:create_at"`
-	UpdateAt     time.Time  `gorm:"column:update_at"`
+	CreateAt     time.Time  `gorm:"column:create_at;autoCreateTime"`
+	UpdateAt     time.Time  `gorm:"column:update_at;autoUpdateTime"`
 }
 
 func (SystemMonitorConfig) TableName() string {
