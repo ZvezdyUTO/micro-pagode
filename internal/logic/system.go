@@ -121,11 +121,19 @@ func (l *system) MonitorState(ctx context.Context, req *domain.MonitorStateReq) 
 func (l *system) GetMonitorConfig(ctx context.Context) (*domain.MonitorConfigResp, error) {
 	// 读取配置，看看系统当前是怎么设定的
 	cfg, err := l.svcCtx.SystemMonitorConfig.Get(ctx)
+	if err == model.ErrNotFound {
+		err = l.svcCtx.SystemMonitorConfig.Insert(ctx, &model.SystemMonitorConfig{
+			IsStart:      false,
+			CpuLimit:     80,
+			DiskLimit:    80,
+			MenLimit:     80,
+			NetSendLimit: 100,
+			NetRecvLimit: 100,
+			NotifyType:   model.NotifyTypeEmail,
+			Email:        "",
+		})
+	}
 	if err != nil {
-		// 如果啥也没找到，就是默认配置，一个空
-		if err == model.ErrNotFound {
-			return &domain.MonitorConfigResp{}, nil
-		}
 		return nil, err
 	}
 

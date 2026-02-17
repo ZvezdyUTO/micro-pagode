@@ -123,7 +123,7 @@ func (m *defaultUsers) FindOne(ctx context.Context, id int64) (*Users, error) {
 
 func (m *defaultUsers) SystemUser() (*Users, error) {
 	var res Users
-	err := m.db.Where("IsSystemUser =?", IsSystemUser).First(&res).Error
+	err := m.db.Where("is_system = ?", IsSystemUser).First(&res).Error
 
 	switch err {
 	case nil:
