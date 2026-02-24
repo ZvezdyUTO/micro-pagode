@@ -2,7 +2,6 @@ package httpx
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,13 +17,13 @@ var (
 )
 
 var (
-	errorHandler func(ctx *gin.Context, err error) (int, error)
-	errorLock    sync.RWMutex
-	okHandler    func(ctx *gin.Context, data any) any
-	okLock       sync.RWMutex
+	errorHandler func(ctx *gin.Context, err error) (int, error) // 传输上下文和错误，返回错误
+	okHandler    func(ctx *gin.Context, data any) any           // 传输上下文和信息，返回任何信息
 )
 
 var NULL = map[string]interface{}{}
+
+// 自定义返回值
 
 func SetOkHandler(handler func(ctx *gin.Context, data any) any) {
 	okHandler = handler
@@ -34,32 +33,32 @@ func SetErrorHandler(handler func(ctx *gin.Context, err error) (int, error)) {
 	errorHandler = handler
 }
 
-type Response struct {
+type Response struct { // 统一响应结构
 	Code int         `json:"code"`
 	Data interface{} `json:"data"`
 	Msg  string      `json:"msg"`
 }
 
-func Result(ctx *gin.Context, code int, data interface{}, msg string) {
-	ctx.JSON(200, &Response{
-		code,
-		data,
-		msg,
+func Result(ctx *gin.Context, httpCode int, bizCode int, data interface{}, msg string) {
+	ctx.JSON(httpCode, &Response{
+		Code: bizCode,
+		Data: data,
+		Msg:  msg,
 	})
 }
+
+// 两种执行情况：OK Fail，以及是否返回信息
 
 func Ok(ctx *gin.Context) {
 	OkWithData(ctx, NULL)
 }
 
 func OkWithData(ctx *gin.Context, data interface{}) {
-	okLock.RLock()
 	handler := okHandler
-	okLock.RUnlock()
 	if handler != nil {
 		data = handler(ctx, data)
 	}
-	Result(ctx, SUCCESS, data, SUCCESSMSG)
+	Result(ctx, 200, SUCCESS, data, SUCCESSMSG)
 }
 
 func Fail(ctx *gin.Context) {
@@ -67,13 +66,16 @@ func Fail(ctx *gin.Context) {
 }
 
 func FailWithErr(ctx *gin.Context, err error) {
-	errorLock.RLock()
 	handler := errorHandler
-	errorLock.RUnlock()
 
-	code := ERROR
+	httpCode := 500
+	bizCode := 50000
+	msg := "internal server error"
+
 	if handler != nil {
-		code, err = handler(ctx, err)
+		httpCode, err = handler(ctx, err)
+		msg = err.Error()
 	}
-	Result(ctx, code, NULL, err.Error())
+
+	Result(ctx, httpCode, bizCode, NULL, msg)
 }

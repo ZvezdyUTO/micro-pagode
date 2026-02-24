@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"mp/internal/infra/collector"
 	"mp/internal/logic"
 	"mp/internal/svc"
 	"mp/pkg/logx"
@@ -17,8 +18,13 @@ type Monitor struct { // 导入依赖注入和实现逻辑
 
 func NewMonitor(svc *svc.ServiceContext) *Monitor {
 	return &Monitor{
-		svc:      svc,
-		sys:      logic.NewSystem(svc),
+		svc: svc,
+		sys: logic.NewSystem(
+			svc.Monitor,
+			svc.SystemMonitorConfig,
+			svc.SystemMonitorWarning,
+			collector.NewGopsutilCollector(),
+		),
 		flushSec: uint64(svc.Config.Monitor.File.StudTime), // 从svc注入刷新秒数
 	}
 }

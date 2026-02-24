@@ -1,6 +1,7 @@
 package api
 
 import (
+	"mp/internal/infra/collector"
 	"mp/internal/logic"
 	"mp/internal/svc"
 )
@@ -8,9 +9,17 @@ import (
 func initHandler(svc *svc.ServiceContext) []Handler {
 	// new logics
 	var (
-		userLogic   = logic.NewUser(svc)
-		fileLogic   = logic.NewFile(svc)
-		systemLogic = logic.NewSystem(svc)
+		userLogic = logic.NewUser(svc.UsersModel)
+		fileLogic = logic.NewFile(
+			svc.FileRepo, svc.Config.FileBasePath,
+			svc.FileSearch,
+		)
+		systemLogic = logic.NewSystem(
+			svc.Monitor,
+			svc.SystemMonitorConfig,
+			svc.SystemMonitorWarning,
+			collector.NewGopsutilCollector(),
+		)
 	)
 
 	// new handlers

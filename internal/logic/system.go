@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"mp/internal/infra/monitorstore"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"mp/internal/domain"
 	"mp/internal/infra/collector"
 	"mp/internal/model"
-	"mp/internal/svc"
 	"mp/pkg/logx"
 	"mp/pkg/mail"
 )
@@ -37,14 +37,23 @@ type System interface {
 }
 
 type system struct {
-	svcCtx    *svc.ServiceContext
+	monitor   *monitorstore.FileStore
+	cfgModel  model.SystemMonitorConfigModel
+	warnModel model.SystemMonitorWarningModel
 	collector collector.Collector
 }
 
-func NewSystem(svcCtx *svc.ServiceContext) System {
+func NewSystem(
+	monitor *monitorstore.FileStore,
+	cfg model.SystemMonitorConfigModel,
+	warn model.SystemMonitorWarningModel,
+	c collector.Collector,
+) System {
 	return &system{
-		svcCtx:    svcCtx,
-		collector: collector.NewGopsutilCollector(),
+		monitor:   monitor,
+		cfgModel:  cfg,
+		warnModel: warn,
+		collector: c,
 	}
 }
 
@@ -54,23 +63,23 @@ func (l *system) Monitor(ctx context.Context) (*domain.MonitorInfoResp, error) {
 	endTime := time.Now().Unix()
 	startTime := endTime - defaultWindow
 
-	cpu, err := l.svcCtx.Monitor.State(ctx, model.MonitorTypeCpu, startTime, endTime)
+	cpu, err := l.monitor.State(ctx, model.MonitorTypeCpu, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
-	mem, err := l.svcCtx.Monitor.State(ctx, model.MonitorTypeMemory, startTime, endTime)
+	mem, err := l.monitor.State(ctx, model.MonitorTypeMemory, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
-	dist, err := l.svcCtx.Monitor.State(ctx, model.MonitorTypeDisk, startTime, endTime)
+	dist, err := l.monitor.State(ctx, model.MonitorTypeDisk, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
-	netSend, err := l.svcCtx.Monitor.State(ctx, model.MonitorTypeNetSend, startTime, endTime)
+	netSend, err := l.monitor.State(ctx, model.MonitorTypeNetSend, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
-	netRecv, err := l.svcCtx.Monitor.State(ctx, model.MonitorTypeNetRecv, startTime, endTime)
+	netRecv, err := l.monitor.State(ctx, model.MonitorTypeNetRecv, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +117,7 @@ func (l *system) MonitorState(ctx context.Context, req *domain.MonitorStateReq) 
 		return nil, err
 	}
 
-	data, err := l.svcCtx.Monitor.State(ctx, mt, 0, math.MaxInt64)
+	data, err := l.monitor.State(ctx, mt, 0, math.MaxInt64)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +128,7 @@ func (l *system) MonitorState(ctx context.Context, req *domain.MonitorStateReq) 
 }
 
 func (l *system) GetMonitorConfig(ctx context.Context) (*domain.MonitorConfigResp, error) {
-	cfg, err := l.svcCtx.SystemMonitorConfig.Get(ctx)
+	cfg, err := l.cfgModel.Get(ctx)
 
 	if err != nil {
 		return nil, err
@@ -139,7 +148,7 @@ func (l *system) GetMonitorConfig(ctx context.Context) (*domain.MonitorConfigRes
 }
 
 func (l *system) UpdateMonitorConfig(ctx context.Context, req *domain.MonitorConfigReq) error {
-	exist, err := l.svcCtx.SystemMonitorConfig.Get(ctx)
+	exist, err := l.cfgModel.Get(ctx)
 	if err != nil && err != model.ErrNotFound {
 		return err
 	}
@@ -147,7 +156,7 @@ func (l *system) UpdateMonitorConfig(ctx context.Context, req *domain.MonitorCon
 	notify := model.NotifyType(req.NotifyType)
 
 	if err == model.ErrNotFound {
-		return l.svcCtx.SystemMonitorConfig.Insert(ctx, &model.SystemMonitorConfig{
+		return l.cfgModel.Insert(ctx, &model.SystemMonitorConfig{
 			IsStart:      req.IsStart,
 			CpuLimit:     req.CpuLimit,
 			DiskLimit:    req.DiskLimit,
@@ -169,19 +178,19 @@ func (l *system) UpdateMonitorConfig(ctx context.Context, req *domain.MonitorCon
 	exist.NotifyType = notify
 	exist.Email = req.Email
 
-	return l.svcCtx.SystemMonitorConfig.Update(ctx, exist)
+	return l.cfgModel.Update(ctx, exist)
 }
 
 func (l *system) GetConfig(ctx context.Context) (maxRecord int, path string) {
-	return l.svcCtx.Monitor.GetConfig(ctx)
+	return l.monitor.GetConfig(ctx)
 }
 
 func (l *system) UpdateConfig(ctx context.Context, maxRecord int) error {
-	return l.svcCtx.Monitor.UpdateConfig(ctx, maxRecord)
+	return l.monitor.UpdateConfig(ctx, maxRecord)
 }
 
 func (l *system) Flush(ctx context.Context) error {
-	return l.svcCtx.Monitor.Flush(ctx)
+	return l.monitor.Flush(ctx)
 }
 
 func (l *system) CaptureOnce(ctx context.Context) error {
@@ -193,7 +202,7 @@ func (l *system) CaptureOnce(ctx context.Context) error {
 
 	// 将原始数据转换为项目统一的MonitorKV格式，并且存入内存
 	nowKey := m.UnixSec
-	if err := l.svcCtx.Monitor.InsertOne(ctx, map[model.MonitorType]*model.MonitorKV{
+	if err := l.monitor.InsertOne(ctx, map[model.MonitorType]*model.MonitorKV{
 		model.MonitorTypeCpu:     {Key: nowKey, Value: m.CPUPercent},
 		model.MonitorTypeMemory:  {Key: nowKey, Value: m.MemPercent},
 		model.MonitorTypeDisk:    {Key: nowKey, Value: m.DiskPercent},
@@ -212,7 +221,7 @@ func (l *system) CaptureOnce(ctx context.Context) error {
 
 func (l *system) checkAndAlert(ctx context.Context, occurrence time.Time, cpuV, memV, diskV, netSendV, netRecvV float64) {
 	// 先查看数据库中有没有配置告警规则
-	cfg, err := l.svcCtx.SystemMonitorConfig.Get(ctx)
+	cfg, err := l.cfgModel.Get(ctx)
 	if err != nil {
 		if err == model.ErrNotFound {
 			return
@@ -260,7 +269,7 @@ func (l *system) checkAndAlert(ctx context.Context, occurrence time.Time, cpuV, 
 		return
 	}
 
-	if err := l.svcCtx.SystemMonitorWarning.Inserts(ctx, warns); err != nil {
+	if err := l.warnModel.Inserts(ctx, warns); err != nil {
 		logx.Error(ctx, "system_monitor:InsertWarnings", err.Error())
 	}
 

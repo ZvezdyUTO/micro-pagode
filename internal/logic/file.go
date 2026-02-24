@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"mp/internal/domain"
-	"mp/internal/svc"
+	"mp/internal/repository"
 )
 
 type File interface {
@@ -25,12 +25,16 @@ type File interface {
 }
 
 type file struct {
-	svcCtx *svc.ServiceContext
+	repo     repository.FileRepository
+	basePath string
+	search   search.FileSearchService
 }
 
-func NewFile(svcCtx *svc.ServiceContext) File {
+func NewFile(repo repository.FileRepository, basePath string, search search.FileSearchService) File {
 	return &file{
-		svcCtx: svcCtx,
+		repo:     repo,
+		basePath: basePath,
+		search:   search,
 	}
 }
 
@@ -40,7 +44,7 @@ func (l *file) resolvePath(userPath string) (absPath string, relPath string, err
 		relPath = ""
 	}
 
-	base := filepath.Clean(l.svcCtx.Config.FileBasePath)
+	base := filepath.Clean(l.basePath)
 	absPath = filepath.Join(base, relPath)
 
 	if !strings.HasPrefix(absPath, base) {
@@ -57,7 +61,7 @@ func (l *file) List(ctx context.Context, req *domain.FilePathReq) (*domain.FileL
 	}
 
 	// 调 repository 的功能
-	list, err := l.svcCtx.FileRepo.List(ctx, absPath)
+	list, err := l.repo.List(ctx, absPath)
 	if err != nil {
 		logx.Errors(ctx, "file", "get_file_list_faild", logx.Fields{
 			"stage": "list",
@@ -88,8 +92,8 @@ func (l *file) CreateDir(ctx context.Context, req *domain.FilePathReq) error {
 		return errno.ErrAlreadyExist
 	}
 
-	l.svcCtx.FileSearch.MarkDirty()
-	return l.svcCtx.FileRepo.CreateDir(ctx, absPath)
+	l.search.MarkDirty()
+	return l.repo.CreateDir(ctx, absPath)
 }
 
 func (l *file) CreateFile(ctx context.Context, req *domain.FilePathReq) error {
@@ -103,8 +107,8 @@ func (l *file) CreateFile(ctx context.Context, req *domain.FilePathReq) error {
 		return errno.ErrParentNotExist
 	}
 
-	l.svcCtx.FileSearch.MarkDirty()
-	return l.svcCtx.FileRepo.CreateFile(ctx, absPath)
+	l.search.MarkDirty()
+	return l.repo.CreateFile(ctx, absPath)
 }
 
 func (l *file) Delete(ctx context.Context, req *domain.FileDeleteReq) error {
@@ -125,12 +129,12 @@ func (l *file) Delete(ctx context.Context, req *domain.FileDeleteReq) error {
 				return errno.ErrDirNotEmpty
 			}
 		}
-		l.svcCtx.FileSearch.MarkDirty()
-		return l.svcCtx.FileRepo.RemoveDir(ctx, absPath)
+		l.search.MarkDirty()
+		return l.repo.RemoveDir(ctx, absPath)
 	}
 
-	l.svcCtx.FileSearch.MarkDirty()
-	return l.svcCtx.FileRepo.RemoveFile(ctx, absPath)
+	l.search.MarkDirty()
+	return l.repo.RemoveFile(ctx, absPath)
 }
 
 func (l *file) Upload(
@@ -150,7 +154,7 @@ func (l *file) Upload(
 
 	// 父目录存在性校验
 	parent := filepath.Dir(absPath)
-	exists, err := l.svcCtx.FileRepo.Exists(ctx, parent)
+	exists, err := l.repo.Exists(ctx, parent)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +163,7 @@ func (l *file) Upload(
 	}
 
 	// 不允许覆盖
-	exists, err = l.svcCtx.FileRepo.Exists(ctx, absPath)
+	exists, err = l.repo.Exists(ctx, absPath)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +172,7 @@ func (l *file) Upload(
 	}
 
 	// 保证路径为受控路径后，执行操作，repo：保存文件 + 计算 hash
-	file, actualHash, err := l.svcCtx.FileRepo.SaveFile(ctx, absPath, req.File)
+	file, actualHash, err := l.repo.SaveFile(ctx, absPath, req.File)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +182,7 @@ func (l *file) Upload(
 		!strings.EqualFold(req.ExpectedSHA256, actualHash) {
 
 		// hash 不一致，说明上传不可信
-		_ = l.svcCtx.FileRepo.RemoveFile(ctx, absPath)
+		_ = l.repo.RemoveFile(ctx, absPath)
 		return nil, errno.ErrHashMismatch
 	}
 
@@ -186,7 +190,7 @@ func (l *file) Upload(
 	file.Path = relPath
 	file.SHA256 = actualHash
 
-	l.svcCtx.FileSearch.MarkDirty()
+	l.search.MarkDirty()
 	return file, nil
 }
 
@@ -197,7 +201,7 @@ func (l *file) Download(ctx context.Context, req *domain.FilePathReq) (io.ReadSe
 	}
 
 	// 下载的本质不是返回数据而是暴露读取能力
-	reader, file, err := l.svcCtx.FileRepo.OpenFile(ctx, absPath)
+	reader, file, err := l.repo.OpenFile(ctx, absPath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -225,7 +229,7 @@ func (l *file) Search(
 	}
 
 	// 2. 调用搜索服务
-	matches, err := l.svcCtx.FileSearch.Search(ctx, keyword, opt)
+	matches, err := l.search.Search(ctx, keyword, opt)
 	if err != nil {
 		return nil, err
 	}

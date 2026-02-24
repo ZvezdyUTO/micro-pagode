@@ -9,7 +9,6 @@ import (
 	"mp/pkg/logx"
 
 	"mp/internal/domain"
-	"mp/internal/svc"
 	"mp/pkg/encrypt"
 )
 
@@ -29,17 +28,15 @@ type User interface {
 }
 
 type user struct {
-	svcCtx *svc.ServiceContext
+	usersModel model.UsersModel
 }
 
-func NewUser(svcCtx *svc.ServiceContext) User {
-	return &user{
-		svcCtx: svcCtx,
-	}
+func NewUser(usersModel model.UsersModel) User {
+	return &user{usersModel: usersModel}
 }
 
 func (l *user) Login(ctx context.Context, req *domain.LoginReq) (resp *domain.LoginResp, err error) {
-	userEntity, err := l.svcCtx.UsersModel.FindByNameOrPhone(req.Username)
+	userEntity, err := l.usersModel.FindByNameOrPhone(req.Username)
 	if err != nil {
 		logx.Errors(ctx, "user", "login_failed", logx.Fields{
 			"username": req.Username,
@@ -68,7 +65,7 @@ func (l *user) Login(ctx context.Context, req *domain.LoginReq) (resp *domain.Lo
 }
 
 func (l *user) Register(ctx context.Context, req *domain.RegisterReq) (*domain.RegisterResp, error) {
-	userEntity, err := l.svcCtx.UsersModel.FindByName(req.Name)
+	userEntity, err := l.usersModel.FindByName(req.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +106,7 @@ func (l *user) Register(ctx context.Context, req *domain.RegisterReq) (*domain.R
 }
 
 func (l *user) Create(ctx context.Context, req *domain.User) error {
-	userEntity, err := l.svcCtx.UsersModel.FindByName(req.Name)
+	userEntity, err := l.usersModel.FindByName(req.Name)
 	if err != nil {
 		logx.Errors(ctx, "admin", "admin_create_user_failed", logx.Fields{
 			"stage": "check_name",
@@ -145,7 +142,7 @@ func (l *user) createUser(ctx context.Context, req *domain.User, from string) er
 		return fmt.Errorf("gen password hash failed: %w", err)
 	}
 
-	if err := l.svcCtx.UsersModel.Insert(ctx, &model.Users{
+	if err := l.usersModel.Insert(ctx, &model.Users{
 		Name:     req.Name,
 		Phone:    req.Phone,
 		Password: string(passwordHash),
@@ -165,7 +162,7 @@ func (l *user) createUser(ctx context.Context, req *domain.User, from string) er
 }
 
 func (l *user) Info(ctx context.Context, req int64) (resp *domain.User, err error) {
-	user, err := l.svcCtx.UsersModel.FindOne(ctx, req)
+	user, err := l.usersModel.FindOne(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +170,7 @@ func (l *user) Info(ctx context.Context, req int64) (resp *domain.User, err erro
 }
 
 func (l *user) UpPassword(ctx context.Context, uid int64, req *domain.UpPasswordReq) error {
-	userEntity, err := l.svcCtx.UsersModel.FindOne(ctx, uid)
+	userEntity, err := l.usersModel.FindOne(ctx, uid)
 	if err != nil {
 		return err
 	}
@@ -204,7 +201,7 @@ func (l *user) UpPassword(ctx context.Context, uid int64, req *domain.UpPassword
 
 	userEntity.Password = string(newHash)
 
-	return l.svcCtx.UsersModel.Update(ctx, userEntity)
+	return l.usersModel.Update(ctx, userEntity)
 }
 
 func (l *user) DeleteSelf(ctx context.Context, uid int64) error {
@@ -251,7 +248,7 @@ func (l *user) AdminDelete(ctx context.Context, adminID, targetUID int64) error 
 }
 
 func (l *user) delete(ctx context.Context, uid int64) error {
-	userEntity, err := l.svcCtx.UsersModel.FindOne(ctx, uid)
+	userEntity, err := l.usersModel.FindOne(ctx, uid)
 	if err != nil {
 		// DB 查询失败 → 系统异常
 		return fmt.Errorf("find user failed: %w", err)
@@ -261,7 +258,7 @@ func (l *user) delete(ctx context.Context, uid int64) error {
 		return errno.ErrUserNotFound
 	}
 
-	if err := l.svcCtx.UsersModel.Delete(ctx, uid); err != nil {
+	if err := l.usersModel.Delete(ctx, uid); err != nil {
 		// 删除失败 → 系统异常
 		return fmt.Errorf("delete user failed: %w", err)
 	}
@@ -270,7 +267,7 @@ func (l *user) delete(ctx context.Context, uid int64) error {
 }
 
 func (l *user) List(ctx context.Context, req *domain.UserListReq) (*domain.UserListResp, error) {
-	users, total, err := l.svcCtx.UsersModel.List(ctx, req)
+	users, total, err := l.usersModel.List(ctx, req)
 	if err != nil {
 		logx.Errors(ctx, "user", "admin_get_list_failed", logx.Fields{
 			"stage": "admin_get_list",
