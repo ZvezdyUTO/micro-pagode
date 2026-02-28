@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 
 	"mp/internal/handler"
@@ -36,6 +38,6 @@ func NewHandle(svc *svc.ServiceContext) *handle {
 	return h
 }
 
-func (h *handle) Run() error {
+func (h *handle) Run(ctx context.Context) error {
 	return h.srv.Run(h.addr)
 }
