@@ -101,7 +101,7 @@ func (m *defaultUsers) FindByNameOrPhone(v string) (*Users, error) {
 	case nil:
 		return &res, nil
 	case gorm.ErrRecordNotFound:
-		return nil, ErrNotFound
+		return nil, nil
 	default:
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (m *defaultUsers) FindOne(ctx context.Context, id int64) (*Users, error) {
 	case nil:
 		return &res, nil
 	case gorm.ErrRecordNotFound:
-		return nil, ErrNotFound
+		return nil, nil
 	default:
 		return nil, err
 	}

@@ -52,21 +52,22 @@ func main() {
 
 	switch *modeType {
 	case Api:
-		runner := task.NewRunner(svcCtx)
-		srv = api.NewHandle(svcCtx)
+		runner := task.NewRunner(svcCtx) // 启动自动任务
+		srv = api.NewHandle(svcCtx)      // 启动控制器
 
-		g, ctx := errgroup.WithContext(rootCtx)
+		g, ctx := errgroup.WithContext(rootCtx) //  创建自动化任务，前者是协程管理，后者是停止信号灯
 
-		// 后台任务：阻塞运行，ctx 取消后退出
+		// 让 runner 在后台跑起来，在独立的协程中运行
 		g.Go(func() error {
-			return runner.Start(ctx) // 你现在的 Start 已经是阻塞式了
+			return runner.Start(ctx)
 		})
 
-		// API 服务：需要你把实现改成 Run(ctx)
+		// 在独立的协程中让 Web 服务器也跑起来
 		g.Go(func() error {
 			return srv.Run(ctx)
 		})
 
+		// 只要 runner 和 srv 都在正常运行，程序就一直停在这，直到人为取消或者程序崩溃
 		if err := g.Wait(); err != nil && err != context.Canceled {
 			panic(err)
 		}

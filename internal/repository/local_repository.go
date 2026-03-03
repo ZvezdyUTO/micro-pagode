@@ -169,20 +169,22 @@ func (r *LocalFileRepository) WalkFiles(
 	fn func(path string, name string, isDir bool) error, // 使用回调函数
 ) error {
 
-	var walk func(path string) error
+	var walk func(path string) error // 定义一个函数，这个函数可以调用它自己
 	walk = func(path string) error {
-		entries, err := os.ReadDir(path)
+		entries, err := os.ReadDir(path) // 读取当前目录，entires 就是当前目录下所有文件和子文件夹
 		if err != nil {
 			return err
 		}
 
-		for _, e := range entries { // 读取所有文件后遍历，执行函数操作，边遍历边执行，此处只负责遍历
+		for _, e := range entries { // 遍历所有文件，执行函数操作，边遍历边执行，此处只负责遍历
 			full := filepath.Join(path, e.Name())
 
+			// 执行外部传进来的函数
 			if err := fn(full, e.Name(), e.IsDir()); err != nil {
 				return err
 			}
 
+			// 如果是目录，则递归执行
 			if e.IsDir() {
 				if err := walk(full); err != nil {
 					return err

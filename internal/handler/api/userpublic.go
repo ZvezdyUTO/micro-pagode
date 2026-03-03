@@ -37,6 +37,7 @@ func (h *UserPublic) Login(ctx *gin.Context) {
 	res, err := h.user.Login(ctx.Request.Context(), &req)
 	if err != nil {
 		httpx.FailWithErr(ctx, err)
+		return
 	}
 
 	token, err := h.svcCtx.JWT.GenerateToken(map[string]interface{}{ // 登录时在handler处生成token

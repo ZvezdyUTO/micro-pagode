@@ -39,6 +39,7 @@ func (m *Monitor) Fix(ctx context.Context) {
 	_ = m.sys.Flush(ctx)
 }
 
+// Register 负责定期执行采集任务和落盘任务
 func (m *Monitor) Register(ctx context.Context) {
 	sec := m.flushSec
 	if sec == 0 {
@@ -72,6 +73,7 @@ func (m *Monitor) Register(ctx context.Context) {
 	}
 }
 
+// Stop 退出的时候最后落盘一次
 func (m *Monitor) Stop(ctx context.Context) {
 	// 退出时最终 flush，尽量别丢数据
 	ctx = logx.SetTraceID(ctx, "")

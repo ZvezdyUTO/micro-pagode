@@ -46,7 +46,7 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 	)
 
 	fileRepo := repository.NewLocalFileRepository()
-	fileSearch := search.NewFileSearchService(
+	fileSearch := search.NewFileSearchService( // 这里在组装 search 和负责创建快照的函数
 		func(ctx context.Context) ([]search.FileMeta, error) {
 			return search.BuildSnapshot(ctx, fileRepo, c.FileBasePath)
 		},

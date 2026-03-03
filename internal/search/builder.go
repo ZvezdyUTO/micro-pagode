@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// BuildSnapshot 创建文件快照，返回文件元信息切片
 func BuildSnapshot(
 	ctx context.Context,
 	repo repository.FileRepository,
@@ -18,7 +19,7 @@ func BuildSnapshot(
 		path string,
 		name string,
 		isDir bool,
-	) error {
+	) error { // 此处是需要执行的函数，包括将遍历目录时遇到的所有文件元信息写入快照
 		result = append(result, FileMeta{
 			Path:       path,
 			Name:       name,

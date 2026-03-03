@@ -15,12 +15,19 @@ import (
 )
 
 type File interface {
+	// List 获取文件列表
 	List(ctx context.Context, req *domain.FilePathReq) (resp *domain.FileListResp, err error)
+	// CreateDir 创建目录
 	CreateDir(ctx context.Context, req *domain.FilePathReq) error
+	// CreateFile 创建文件
 	CreateFile(ctx context.Context, req *domain.FilePathReq) error
+	// Delete 删除文件
 	Delete(ctx context.Context, req *domain.FileDeleteReq) error
+	// Upload 上传文件
 	Upload(ctx context.Context, req *domain.UploadFileReq) (*domain.File, error)
+	// Download 下载文件
 	Download(ctx context.Context, req *domain.FilePathReq) (io.ReadSeekCloser, *domain.File, error)
+	// Search 搜索文件
 	Search(ctx context.Context, req *domain.FileSearchReq) (*domain.FileSearchResp, error)
 }
 
@@ -38,15 +45,19 @@ func NewFile(repo repository.FileRepository, basePath string, search search.File
 	}
 }
 
+// resolvePath 将用户传进来的相对路径安全地衍射到服务器的基准目录
 func (l *file) resolvePath(userPath string) (absPath string, relPath string, err error) {
+	// 清理脏路径，并将空目录转为空串
 	relPath = filepath.Clean(userPath)
 	if relPath == "." {
 		relPath = ""
 	}
 
+	// 将相对路径拼接为真实路径
 	base := filepath.Clean(l.basePath)
 	absPath = filepath.Join(base, relPath)
 
+	// 检查基准目录是否合法，防止非法访问
 	if !strings.HasPrefix(absPath, base) {
 		return "", "", errno.ErrInvalidPath
 	}
@@ -71,6 +82,13 @@ func (l *file) List(ctx context.Context, req *domain.FilePathReq) (*domain.FileL
 		return nil, err
 	}
 
+	// 限制结果
+	limit := req.Limit
+	if limit <= 0 || limit > len(list) {
+		limit = len(list)
+	}
+	list = list[:limit]
+
 	// 补业务 Path ，那个函数返回的是文件，但我们需要补上用户之前提供的路径
 	for _, f := range list {
 		f.Path = filepath.Join(relPath, f.Filename)
@@ -92,6 +110,7 @@ func (l *file) CreateDir(ctx context.Context, req *domain.FilePathReq) error {
 		return errno.ErrAlreadyExist
 	}
 
+	// 创建后标记快照到期
 	l.search.MarkDirty()
 	return l.repo.CreateDir(ctx, absPath)
 }
@@ -122,6 +141,7 @@ func (l *file) Delete(ctx context.Context, req *domain.FileDeleteReq) error {
 		return errno.ErrNotExist
 	}
 
+	// 检查是否为目录，如果没有开启递归删除，则要检查目录是否为空
 	if info.IsDir() {
 		if !req.Recursive {
 			entries, _ := os.ReadDir(absPath)
@@ -215,7 +235,7 @@ func (l *file) Search(
 	req *domain.FileSearchReq,
 ) (*domain.FileSearchResp, error) {
 
-	// 1. 参数整理
+	// 1. 参数整理，拦截空值，不浪费服务器资源
 	keyword := strings.TrimSpace(req.Keyword)
 	if keyword == "" {
 		return &domain.FileSearchResp{
@@ -236,10 +256,11 @@ func (l *file) Search(
 
 	// 3. 结果裁剪 & 转换
 	limit := req.Limit
-	if limit <= 0 || limit > len(matches) {
+	if limit <= 0 || limit > len(matches) { // 根据限制数据显示前 ? 条结果
 		limit = len(matches)
 	}
 
+	// 转换为业务对象，将冗余信息去除，只返回路径、名称、是否为目录，返回为切片形式
 	list := make([]domain.FileSummary, 0, limit)
 	for i := 0; i < limit; i++ {
 		m := matches[i]

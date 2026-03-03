@@ -5,11 +5,12 @@ import (
 	"sync"
 )
 
+// snapshot 负责管理文件元数据的内存快照，负责从磁盘/仓库遍历手机 FileMeta 列表，保证并发安全的读快照/懒构建/标记脏流程
 type snapshotManager struct {
-	mu    sync.RWMutex
+	mu    sync.RWMutex // 锁
 	dirty bool
-	files []FileMeta
-	build func(ctx context.Context) ([]FileMeta, error)
+	files []FileMeta                                    // 快照
+	build func(ctx context.Context) ([]FileMeta, error) // 如何从磁盘/数据库生成数据
 }
 
 func newSnapshotManager(
@@ -24,7 +25,7 @@ func newSnapshotManager(
 // getSnapshot 返回一个“有效的快照”
 // 如果快照过期，则在这里进行重建
 func (s *snapshotManager) getSnapshot(ctx context.Context) ([]FileMeta, error) {
-	// 快路径：快照有效
+	// 快路径：快照有效，加读锁保证并发安全
 	s.mu.RLock()
 	if !s.dirty { // 没有被更新（脏数据）则直接返回
 		files := s.files

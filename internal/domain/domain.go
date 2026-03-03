@@ -121,7 +121,8 @@ type UpPasswordReq struct {
 }
 
 type FilePathReq struct {
-	Path string `json:"path" form:"path"`
+	Path  string `json:"path" form:"path"`
+	Limit int    `json:"limit,omitempty" form:"limit"`
 }
 
 type FileListResp struct {

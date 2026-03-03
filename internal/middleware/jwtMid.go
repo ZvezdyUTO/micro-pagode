@@ -18,10 +18,11 @@ func NewJWTMid(j *jwt.JWT) *JWTMid {
 }
 
 func (m *JWTMid) Handler(ctx *gin.Context) {
-	auth := ctx.GetHeader("Authorization")
+	// 处理校验，检查 Token，若不通过则立即停止
+	auth := ctx.GetHeader("Authorization") // HTTP Header 约定俗成的标准是将 Token 放在 Header 的 Authorization
 	if auth == "" {
 		ctx.JSON(401, gin.H{"msg": "未登录"})
-		ctx.Abort()
+		ctx.Abort() // 立即停止
 		return
 	}
 
@@ -32,6 +33,7 @@ func (m *JWTMid) Handler(ctx *gin.Context) {
 		return
 	}
 
+	// 使用 jwt 中间件从 Token 中提取信息，以 map 的形式传回来
 	claims, err := m.jwt.ParseToken(parts[1])
 	if err != nil {
 		ctx.JSON(401, gin.H{"msg": "Token 无效或已过期"})
@@ -39,6 +41,7 @@ func (m *JWTMid) Handler(ctx *gin.Context) {
 		return
 	}
 
+	// 将解析出来的数据写入 ctx 中
 	// 1. 处理 uid
 	uidFloat, ok := claims["uid"].(float64)
 	if !ok {
@@ -62,5 +65,5 @@ func (m *JWTMid) Handler(ctx *gin.Context) {
 		ctx.Set("name", name)
 	}
 
-	ctx.Next()
+	ctx.Next() // 批准放行
 }

@@ -25,6 +25,7 @@ func NewAdminUser(svcCtx *svc.ServiceContext, user logic.User) *AdminUser {
 }
 
 func (h *AdminUser) InitRegister(engine *gin.Engine) {
+	// RESTful 架构，用 URL 表示资源，用 HTTP 动词表示动作
 	g := engine.Group("v1/admin/users", h.svcCtx.JwtMid.Handler, h.svcCtx.AdminMid.Handler)
 	g.GET("", h.List)
 	g.POST("", h.Create)

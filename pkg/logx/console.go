@@ -13,6 +13,7 @@ func NewConsoleLogger() *ConsoleLogger {
 	return &ConsoleLogger{}
 }
 
+// Log 将日志对象 Entry 序列化为 JSON 格式并且打印
 func (c *ConsoleLogger) Log(entry Entry) {
 	b, err := json.Marshal(entry)
 	if err != nil {

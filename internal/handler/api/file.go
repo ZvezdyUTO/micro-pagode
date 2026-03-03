@@ -35,7 +35,7 @@ func (h *File) InitRegister(engine *gin.Engine) {
 	g.GET("/search", h.Search)
 }
 
-// 文件列表
+// List 文件列表
 func (h *File) List(ctx *gin.Context) {
 	var req domain.FilePathReq
 	if err := httpx.BindAndValidate(ctx, &req); err != nil {
@@ -51,7 +51,7 @@ func (h *File) List(ctx *gin.Context) {
 	}
 }
 
-// 创建目录
+// CreateDir 创建目录
 func (h *File) CreateDir(ctx *gin.Context) {
 	var req domain.FilePathReq
 	if err := httpx.BindAndValidate(ctx, &req); err != nil {
@@ -67,7 +67,7 @@ func (h *File) CreateDir(ctx *gin.Context) {
 	}
 }
 
-// 创建文件
+// CreateFile 创建文件
 func (h *File) CreateFile(ctx *gin.Context) {
 	var req domain.FilePathReq
 	if err := httpx.BindAndValidate(ctx, &req); err != nil {
@@ -83,7 +83,7 @@ func (h *File) CreateFile(ctx *gin.Context) {
 	}
 }
 
-// 删除文件或目录
+// Delete 删除文件或目录
 func (h *File) Delete(ctx *gin.Context) {
 	var req domain.FileDeleteReq
 	if err := httpx.BindAndValidate(ctx, &req); err != nil {
@@ -99,7 +99,7 @@ func (h *File) Delete(ctx *gin.Context) {
 	}
 }
 
-// 文件上传
+// Upload 文件上传
 func (h *File) Upload(ctx *gin.Context) {
 	var req domain.UploadFileReq
 	if err := httpx.BindAndValidate(ctx, &req); err != nil {
@@ -115,7 +115,7 @@ func (h *File) Upload(ctx *gin.Context) {
 	}
 }
 
-// 文件下载
+// Download 文件下载
 func (h *File) Download(ctx *gin.Context) {
 	var req domain.FilePathReq
 	if err := httpx.BindAndValidate(ctx, &req); err != nil {
@@ -144,7 +144,7 @@ func (h *File) Download(ctx *gin.Context) {
 	}
 }
 
-// 文件搜索
+// Search 文件搜索
 func (h *File) Search(ctx *gin.Context) {
 	var req domain.FileSearchReq
 	if err := httpx.BindAndValidate(ctx, &req); err != nil {

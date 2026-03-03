@@ -21,6 +21,7 @@ type FileRepository interface {
 	SaveFile(ctx context.Context, path string, src io.Reader) (*domain.File, string, error)
 	OpenFile(ctx context.Context, path string) (io.ReadSeekCloser, *domain.File, error)
 
+	// WalkFiles 用于递归地遍历所有目录，并且执行外部传进来的函数
 	WalkFiles(
 		ctx context.Context,
 		root string,
