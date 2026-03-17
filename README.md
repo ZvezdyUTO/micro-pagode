@@ -113,53 +113,37 @@ internal/
 ```
 ---
 
-## 快速开始
+##  快速开始（Docker）
 
-### 1. 准备配置
-
-项目配置结构大致包括：
-
-* 服务监听地址
-* 文件根目录
-* MySQL 数据源
-* JWT 密钥与过期时间
-* 监控存储路径与最大记录数
-
-配置结构可以在 `internal/config/config.go` 中看到。
-
-你可以准备一个类似的配置文件：
-
-```yaml
-name: micro-pagode
-addr: 0.0.0.0:8080
-filebasepath: ./data
-
-mysql:
-  datasource: root:123456@tcp(127.0.0.1:3306)/micro_pagode?charset=utf8mb4&parseTime=True&loc=Local
-
-jwt:
-  secret: your-secret
-  expire: 72h
-
-monitor:
-  type: file
-  maxrecord: 1000
-  file:
-    path: ./runtime/monitor
-    studtime: 5
-```
-
-### 2. 启动 MySQL
-
-确保你已经准备好可用的 MySQL 实例，并创建项目所需数据库。
-
-### 3. 启动服务
+### 一键启动
 
 ```bash
-go run .
+git clone https://github.com/ZvezdyUTO/micro-pagode
+cd micro-pagode
+docker compose up -d
 ```
 
-如果你的入口文件不是根目录主程序，就根据实际入口调整命令。
+---
+
+### 启动说明
+
+* 项目内已内置默认配置（`/etc/local/api.yaml`），无需额外修改
+* Docker Compose 会自动完成：
+
+  * MySQL 服务启动
+  * 后端服务构建与启动
+  * 数据库连接与初始化
+  * 系统默认数据创建（root 用户 / 监控配置）
+
+---
+
+### 服务访问
+
+启动完成后，服务默认运行在：
+
+```text
+http://localhost:8080
+```
 
 ---
 
